@@ -44,7 +44,7 @@ function App() {
         <h2>Contact</h2>
         <ul>
           <li>GitHub: <a href="https://github.com/KenJaredMora" target="_blank" rel="noreferrer">KenJaredMora</a></li>
-          <li>Email: <a href="mailto:kenyonjaredmora@gmail.com">kenyonjaredmora@gmail.com</a></li>
+          <li>Email: <a href="mailto:kenyonnumero1@gmail.com">kenyonnumero1@gmail.com</a></li>
           <li>Location: Querétaro, MX</li>
         </ul>
 

@@ -15,18 +15,18 @@ variable "github_actions_ssh_cidrs" {
   type        = list(string)
   default = [
     # Core GitHub Actions ranges (most commonly used)
-    "4.148.0.0/16",        # Primary GitHub Actions ranges
+    "4.148.0.0/16", # Primary GitHub Actions ranges
     "4.149.0.0/18",
-    "4.150.0.0/18", 
+    "4.150.0.0/18",
     "4.151.0.0/16",
     "4.152.0.0/15",
     "4.154.0.0/15",
     "4.156.0.0/15",
-    "13.64.0.0/16",        # Additional Azure ranges for GitHub Actions
+    "13.64.0.0/16", # Additional Azure ranges for GitHub Actions
     "13.65.0.0/16",
-    "20.1.128.0/17",       # More GitHub Actions IP blocks
+    "20.1.128.0/17", # More GitHub Actions IP blocks
     "20.3.0.0/16",
-    "52.224.0.0/16",       # Extended GitHub Actions coverage
+    "52.224.0.0/16", # Extended GitHub Actions coverage
     "52.225.0.0/17"
   ]
 }

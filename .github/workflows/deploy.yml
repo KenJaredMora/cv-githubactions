@@ -1,4 +1,4 @@
-name: Deploy Vite App to EC2
+name: Deploy My-CV Vite App to EC2 + GitHubActions
 
 on:
   push:

@@ -1,0 +1,84 @@
+name: Deploy Vite App to EC2
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  NODE_VERSION: '20'
+  
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        cache-dependency-path: my-vite-app/package-lock.json
+
+    - name: Install dependencies
+      working-directory: ./my-vite-app
+      # Clean install to ensure a fresh state (removes node_modules and installs exactly what's in package-lock.json)
+      run: npm ci
+
+    - name: Build Vite app
+      working-directory: ./my-vite-app
+      run: npm run build
+
+    - name: Create deployment archive
+      working-directory: ./my-vite-app
+      # The | tells YAML to preserve line breaks and treat the following indented block as a multi-line string literal.
+      run: |
+        cd dist
+        tar -czf ../vite-build.tar.gz .
+        cd ..
+        echo "Build size: $(du -h vite-build.tar.gz | cut -f1)"
+
+    - name: Setup SSH key
+      # Only run on main branch pushes (not PRs)
+      if: github.ref == 'refs/heads/main'
+      run: |
+        # Create SSH directory and key file
+        mkdir -p ~/.ssh  # Create .ssh directory if it doesn't exist
+        printf '%s\n' "${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key  # Write private key to file
+        sed -i '/^[[:space:]]*$/d' ~/.ssh/deploy_key  # Remove empty lines from key file:
+        # sed is used to edit files in place (-i); this command deletes any lines that are empty or contain only whitespace.
+        chmod 600 ~/.ssh/deploy_key
+        
+        # Add EC2 host to known hosts
+        # ssh-keyscan retrieves the server's public key to avoid "unknown host" warnings
+        # -H hashes the hostname in known_hosts for security
+        # >> appends to known_hosts file (doesn't overwrite)
+        # 2>/dev/null suppresses error messages
+        # || provides fallback if keyscan fails (network issues, etc.)
+        ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts 2>/dev/null || echo "Warning: Could not add host to known_hosts"  # Scan and add host key to prevent SSH warnings
+
+    - name: Deploy to EC2
+      if: github.ref == 'refs/heads/main'  # Only deploy on main branch pushes (not PRs)
+      env:
+        EC2_HOST: ${{ secrets.EC2_HOST }}
+        EC2_USER: ${{ secrets.EC2_USER }}
+      run: |
+        # Test SSH connection first
+        echo "Testing SSH connection to $EC2_USER@$EC2_HOST"
+        ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no -o ConnectTimeout=10 $EC2_USER@$EC2_HOST "echo 'SSH connection successful'"  # Verify SSH access before deployment
+        
+        # Copy deployment script to server
+        echo "Transferring deployment script to $EC2_USER@$EC2_HOST"
+        scp -v -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ./scripts/deploy.sh $EC2_USER@$EC2_HOST:/tmp/  # Upload deploy script to /tmp
+        
+        # Copy build archive to server
+        echo "Transferring build archive to $EC2_USER@$EC2_HOST"
+        scp -v -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no ./my-vite-app/vite-build.tar.gz $EC2_USER@$EC2_HOST:/tmp/  # Upload compressed build files
+        
+        # Execute deployment script
+        echo "Executing deployment script on $EC2_USER@$EC2_HOST"
+        ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST "chmod +x /tmp/deploy.sh && /tmp/deploy.sh"  # Make script executable and run deployment
